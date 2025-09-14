@@ -1,0 +1,32 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  name: Backend
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '20.17'
+    displayName: 'Install Node.js'
+
+  - script: |
+      cd api-auth
+      yarn install
+      yarn build
+    displayName: 'Install dependencies and build'
+
+  - script: |
+      rm -rf /home/deploy/apps/api-auth/*
+      rsync -a --delete --exclude '.env' "$(Build.SourcesDirectory)/" "/home/deploy/apps/api-auth/"
+    displayName: 'Sync auth -> /apps/api-auth'
+
+  - script: |
+      cd /home/deploy/apps
+      docker-compose stop auth-api
+      docker-compose rm -f -v auth-api
+      docker-compose build auth-api
+      docker-compose up -d auth-api
+    displayName: 'Rebuild and restart auth-api via docker-compose'

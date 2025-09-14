@@ -1,0 +1,32 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  name: Backend
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '20.17'
+    displayName: 'Install Node.js'
+
+  - script: |
+      cd api-message
+      yarn install
+      yarn build
+    displayName: 'Install dependencies and build'
+
+  - script: |
+      rm -rf /home/deploy/apps/api-message/*
+      rsync -a --delete --exclude '.env' "$(Build.SourcesDirectory)/" "/home/deploy/apps/api-message/"
+    displayName: 'Sync message -> /apps/api-message'
+
+  - script: |
+      cd /home/deploy/apps
+      docker-compose stop message-api
+      docker-compose rm -f -v message-api
+      docker-compose build message-api
+      docker-compose up -d message-api
+    displayName: 'Rebuild and restart message-api via docker-compose'

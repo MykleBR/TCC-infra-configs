@@ -1,0 +1,32 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  name: Backend
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '20.17'
+    displayName: 'Install Node.js'
+
+  - script: |
+      cd api-core
+      yarn install
+      yarn build
+    displayName: 'Install dependencies and build'
+
+  - script: |
+      rm -rf /home/deploy/apps/api-core/*
+      rsync -a --delete --exclude '.env' "$(Build.SourcesDirectory)/" "/home/deploy/apps/api-core/"
+    displayName: 'Sync core -> /apps/api-core'
+
+  - script: |
+      cd /home/deploy/apps
+      docker-compose stop core-api
+      docker-compose rm -f -v core-api
+      docker-compose build core-api
+      docker-compose up -d core-api
+    displayName: 'Rebuild and restart core-api via docker-compose'
